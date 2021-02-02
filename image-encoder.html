@@ -1,0 +1,89 @@
+<html>
+  <head>
+    <title>Image Encoder</title>
+  </head>
+  <body style="display:flex; flex-direction:row; flex: 1 1 auto;">
+    <div style="display:flex; flex-direction: column; flex: 1 1 auto;">
+      <input type="file" id="pictureField" accept="image/*" />
+      <canvas id="fromCanvas" style="width:180px; height:180px;"></canvas>
+      <canvas id="toCanvas" style="width:180px; height:180px; background-color:black;"></canvas>
+    </div>
+    <textarea id="code" cols="80" style="flex: 1 1 auto;"></textarea>
+  </body>
+  <script type="text/javascript">
+    const NUM_PIXELS = 60;
+    const IMG_MULTIPLY = 3;
+    document.getElementById('pictureField').onchange = evt => {
+      const file = evt.target.files[0];
+      if (!file.type.match(/image.*/)) { alert('Not an image'); return; }
+
+      const reader = new FileReader();
+      reader.onload = readerEvent => {
+        const image = new Image();
+        image.onload = () => {
+          const canvas = document.getElementById("fromCanvas");
+          const max_size = NUM_PIXELS * IMG_MULTIPLY;
+          let width = image.width;
+          let height = image.height;
+          if (width > height) {
+            if (width > max_size) {
+              height *= max_size / width;
+              width = max_size;
+            }
+          } else {
+            if (height > max_size) {
+              width *= max_size / height;
+              height = max_size;
+            }
+          }
+          canvas.width = max_size;
+          canvas.height = max_size;
+          const context = canvas.getContext('2d');
+          context.drawImage(image, 0, 0, width, height);
+
+          const toCanvas = document.getElementById("toCanvas");
+          toCanvas.width = max_size;
+          toCanvas.height = max_size;
+          const toContext = toCanvas.getContext('2d');
+
+          var palette = [[0,0,0]];
+          var paletteKeys = {'#000000': 0};
+          var data = [];
+var color = "not set";
+          for (var deg = 0; deg < 180; deg += 2) {
+            for (var l=-NUM_PIXELS/2; l<NUM_PIXELS/2; l++) {
+              const off_x = Math.cos(deg/180*Math.PI) * (l + 1);
+              const off_y = Math.sin(deg/180*Math.PI) * (l + 1);
+
+              const pixel = context.getImageData(off_x * IMG_MULTIPLY + max_size/2, off_y * IMG_MULTIPLY + max_size/2, 1, 1).data.map(d => d & 0xf8);
+              if (pixel[3] < 100) {
+                data.push(0);
+                continue;
+              }
+              
+              toContext.beginPath();
+              toContext.fillStyle = `rgb(${pixel[0]}, ${pixel[1]}, ${pixel[2]})`;
+              color = toContext.fillStyle;
+              if (paletteKeys[color] === undefined) {
+                paletteKeys[color] = palette.length;
+                palette.push([pixel[0], pixel[1], pixel[2]]);
+              }
+              const colorIdx = paletteKeys[color];
+              data.push(colorIdx);
+              toContext.arc(off_x * IMG_MULTIPLY + max_size/2, off_y * IMG_MULTIPLY + max_size/2, 0.5, 0, Math.PI*2, false);
+              toContext.fill();
+            }
+          }
+          console.log(color);
+
+          document.getElementById("code").value = `
+const uint8_t palette[${palette.length}][3] = {${palette.map(p => `{${p.join()}}`).join()}};
+const uint8_t image[${data.length}] PROGMEM = {${data.join()}};
+          `
+        }
+        image.src = readerEvent.target.result;
+      }
+      reader.readAsDataURL(file);
+    }
+  </script>
+</html>
