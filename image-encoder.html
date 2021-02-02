@@ -36,10 +36,13 @@
               height = max_size;
             }
           }
+          let left = (max_size - width) / 2;
+          let top = (max_size - height) / 2;
+
           canvas.width = max_size;
           canvas.height = max_size;
           const context = canvas.getContext('2d');
-          context.drawImage(image, 0, 0, width, height);
+          context.drawImage(image, left, top, width, height);
 
           const toCanvas = document.getElementById("toCanvas");
           toCanvas.width = max_size;
